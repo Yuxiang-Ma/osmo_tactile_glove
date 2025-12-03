@@ -89,6 +89,12 @@ body {
   display: block;
 }
 
+/* Allow dropdown to be shown when activated (for mobile/touch) */
+.navbar-item.has-dropdown.is-active .navbar-dropdown,
+.navbar-menu.is-active .navbar-item.has-dropdown .navbar-dropdown {
+  display: block;
+}
+
 .navbar-link {
   color: var(--text-primary);
   font-weight: 500;

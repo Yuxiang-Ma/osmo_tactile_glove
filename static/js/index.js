@@ -10,6 +10,20 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
+  // Sections dropdown toggle for mobile/touch: allow expanding the dropdown when menu is open
+  const dropdownParent = document.querySelector('.navbar-item.has-dropdown');
+  const navbarLink = document.querySelector('.navbar-item.has-dropdown .navbar-link');
+  if (dropdownParent && navbarLink) {
+    navbarLink.addEventListener('click', function(e) {
+      // if mobile (menu open) or on small screens, toggle dropdown
+      const isMobile = window.matchMedia('(max-width: 768px)').matches || (menu && menu.classList.contains('is-active'));
+      if (isMobile) {
+        e.preventDefault();
+        dropdownParent.classList.toggle('is-active');
+      }
+    });
+  }
+
   // Smooth scrolling for navigation links
   document.querySelectorAll('.navbar-item[href^="#"]').forEach(anchor => {
     anchor.addEventListener('click', function(e) {
