@@ -155,8 +155,16 @@
     <div class="navbar-menu">
       <div class="navbar-start" style="flex-grow: 1; justify-content: center;">
         <a class="navbar-item" href="#abstract">Abstract</a>
-        <a class="navbar-item" href="#gallery">Gallery</a>
-        <a class="navbar-item" href="#bibtex">Citation</a>
+        <div class="navbar-item has-dropdown is-hoverable">
+          <span class="navbar-link">Sections</span>
+          <div class="navbar-dropdown">
+            <a class="navbar-item" href="#osmo-design">OSMO Glove Design</a>
+            <a class="navbar-item" href="#tactile-data">Tactile Data</a>
+            <a class="navbar-item" href="#hand-tracking">Hand Tracking</a>
+            <a class="navbar-item" href="#robot-policy">Robot Policy</a>
+          </div>
+        </div>
+        <a class="navbar-item" href="#bibtex">BibTeX</a>
         <a class="navbar-item" href="#technical">Technical Details</a>
       </div>
     </div>
@@ -267,7 +275,7 @@
   <section class="section" id="gallery">
     <div class="container is-max-desktop">
       <!-- OSMO Glove Design -->
-      <div class="gallery-subsection">
+      <div class="gallery-subsection" id="osmo-design">
         <h2 class="title is-3 has-text-centered" style="margin-bottom: 2rem;">OSMO Glove Design</h2>
         <div class="osmo-gallery-container">
           <div class="carousel osmo-gallery" id="osmo-gallery">
@@ -537,7 +545,7 @@
     <div class="container is-max-desktop">
       <div class="columns is-centered">
         <div class="column is-four-fifths">
-          <h2 class="title is-3 has-text-centered">Citation</h2>
+          <h2 class="title is-3 has-text-centered">BibTeX</h2>
           <div class="bibtex-container">
             <button class="button is-small copy-bibtex" onclick="copyBibtex()" title="Copy BibTeX">
               <span class="icon">
@@ -549,7 +557,7 @@
 @article{yin2025osmo,
     title={OSMO: Open-Source Tactile Glove for Human-to-Robot Skill Transfer},
     author={Yin, Jessica and Qi, Haozhi and Wi, Youngsun and Kundu, Sayantan and Lambeta, Mike and Yang, William and Wang, Changhao and Wu, Tingfan and Malik, Jitendra and Hellebrekers, Tess},
-    journal={arxiv},
+    journal={ArXiv},
     year={2025}
 }</pre>
           </div>

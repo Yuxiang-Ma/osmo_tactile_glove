@@ -49,6 +49,14 @@ body {
 .navbar-menu {
   display: flex;
   justify-content: center;
+  align-items: center;
+}
+
+.navbar-start {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 0;
 }
 
 .navbar-item {
@@ -57,6 +65,9 @@ body {
   padding: 0.5rem 1.5rem;
   transition: var(--transition);
   text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
 }
 
 .navbar-item:hover {
@@ -66,6 +77,60 @@ body {
 
 .navbar-burger {
   display: none;
+}
+
+/* Navbar Dropdown */
+.navbar-item.has-dropdown {
+  position: relative;
+  padding: 0;
+}
+
+.navbar-item.has-dropdown.is-hoverable:hover .navbar-dropdown {
+  display: block;
+}
+
+.navbar-link {
+  color: var(--text-primary);
+  font-weight: 500;
+  padding: 0.5rem 1.5rem;
+  transition: var(--transition);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
+
+.navbar-link:hover {
+  color: var(--primary-color);
+}
+
+.navbar-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background-color: var(--background-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  box-shadow: var(--shadow-md);
+  min-width: 200px;
+  display: none;
+  z-index: 20;
+  margin-top: 0;
+}
+
+.navbar-dropdown .navbar-item {
+  display: block;
+  padding: 0.75rem 1.5rem;
+  color: var(--text-primary);
+  text-decoration: none;
+  transition: var(--transition);
+  border-radius: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.navbar-dropdown .navbar-item:hover {
+  background-color: var(--background-secondary);
+  color: var(--primary-color);
 }
 
 /* Hero Section */
@@ -145,7 +210,14 @@ body {
   border: 1px solid #ddd;
   display: inline-flex;
   align-items: center;
+  gap: 0.5rem;
   text-decoration: none;
+}
+
+.button .icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .button.is-dark {
@@ -195,6 +267,7 @@ body {
 .section {
   padding: 4rem 1.5rem;
   background: var(--background-primary);
+  scroll-margin-top: 100px;
 }
 
 .title {
@@ -258,6 +331,7 @@ body {
 
 .gallery-subsection {
   margin-bottom: 2rem;
+  scroll-margin-top: 100px;
 }
 
 .gallery-subsection video {
