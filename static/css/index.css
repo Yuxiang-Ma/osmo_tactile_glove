@@ -115,6 +115,7 @@ body {
   display: none;
   z-index: 20;
   margin-top: 0;
+  pointer-events: auto;
 }
 
 .navbar-dropdown .navbar-item {
@@ -126,6 +127,8 @@ body {
   border-radius: 0;
   width: 100%;
   box-sizing: border-box;
+  pointer-events: auto;
+  cursor: pointer;
 }
 
 .navbar-dropdown .navbar-item:hover {

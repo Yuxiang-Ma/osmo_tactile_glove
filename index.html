@@ -406,7 +406,7 @@
       </div>
 
             <!-- Rich Shear and Normal Tactile Signals -->
-      <div class="gallery-subsection" style="margin-top: 4rem;">
+      <div class="gallery-subsection" id="tactile-data" style="margin-top: 4rem;">
         <h2 class="title is-3 has-text-centered" style="margin-bottom: 2rem;">Rich Shear and Normal Tactile Signals</h2>
         <div class="columns is-vcentered" style="gap: 2rem;">
           <div class="column is-one-quarter">
@@ -424,7 +424,7 @@
       </div>
 
       <!-- In the Wild Hand Tracking -->
-      <div class="gallery-subsection" style="margin-top: 4rem;">
+      <div class="gallery-subsection" id="hand-tracking" style="margin-top: 4rem;">
         <h2 class="title is-3 has-text-centered" style="margin-bottom: 2rem;">In-the-Wild Hand Tracking Demos</h2>
         <div class="columns is-vcentered" style="gap: 2rem;">
           <div class="column is-one-quarter">
@@ -449,16 +449,10 @@
       </div>
 
       <!-- Human to Robot Policy Rollouts -->
-      <div class="gallery-subsection" style="margin-top: 4rem;">
+      <div class="gallery-subsection" id="robot-policy" style="margin-top: 4rem;">
         <h2 class="title is-3 has-text-centered" style="margin-bottom: 2rem;">Robot Policy Learned from Human Glove Demonstrations</h2>
         <div class="columns is-vcentered" style="gap: 2rem;">
-          <div class="column is-two-fifths">
-            <video controls autoplay loop muted class="gallery-video" style="border-radius: var(--border-radius); box-shadow: var(--shadow-md);">
-              <source src="videos/policy_rollouts.mp4" type="video/mp4">
-              Your browser does not support the video tag.
-            </video>
-          </div>
-          <div class="column is-three-fifths">
+          <div class="column is-four-fifths">
             <p class="has-text-justified">
               We demonstrate that a robot policy trained exclusively on human demonstrations collected with OSMO, without any real robot data, is capable of executing a challenging contact-rich manipulation task. On a real-world wiping task requiring sustained contact pressure, our tactile-aware policy achieves a 72% success rate, outperforming vision-only baselines by eliminating contact-related failure modes.
             </p>
