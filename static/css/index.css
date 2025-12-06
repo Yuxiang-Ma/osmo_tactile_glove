@@ -144,12 +144,11 @@ body {
 
 /* Hero Section */
 .hero {
-  padding: 4rem 1.5rem;
-  background: var(--background-primary);
+  padding: 1rem 1.5rem;        /* was 4rem 1.5rem */
 }
 
 .hero-body {
-  padding: 2rem 0;
+  padding: 0.5rem 0;             /* was 2rem 0 */
 }
 
 .publication-title {
@@ -274,7 +273,7 @@ body {
 
 /* Section Styling */
 .section {
-  padding: 4rem 1.5rem;
+  padding: 1rem 1.5rem;
   background: var(--background-primary);
   scroll-margin-top: 100px;
 }
@@ -406,7 +405,7 @@ body {
 .osmo-gallery .gallery-slide-content {
   display: flex;
   gap: 2rem;
-  align-items: flex-start;
+  align-items: center;    /* ← fix vertical centering everywhere */
 }
 
 .osmo-gallery .gallery-image-wrapper {
@@ -620,12 +619,12 @@ body {
 
 /* Container */
 .container {
-  max-width: 1200px;
+  max-width: 1100px;
   margin: 0 auto;
 }
 
 .is-max-desktop {
-  max-width: 1200px;
+  max-width: 1100px;
   margin: 0 auto;
 }
 
@@ -679,6 +678,16 @@ body {
 
 .is-three-quarters {
   width: 75%;
+}
+
+/* Make vcentered columns truly center their children */
+.columns.is-vcentered {
+  align-items: center;
+}
+
+/* Remove the extra top margin that breaks visual centering */
+.columns.is-vcentered .column > p:first-child {
+  margin-top: 0;
 }
 
 /* Responsive Design */
