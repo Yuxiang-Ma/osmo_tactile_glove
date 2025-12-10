@@ -1,3 +1,13 @@
+# OSMO: Open-Source Tactile Glove for Human-to-Robot Skill Transfer
+Jessica Yin, Haozhi Qi*, Youngsun Wi*, Sayantan Kundu, Mike Lambeta, William Yang, Changhao Wang, Tingfan Wu, Jitendra Malik, and Tess Hellebrekers
+
+*equal contribution 
+
+Project website: [jessicayin.github.io/osmo_tactile_glove](https://jessicayin.github.io/osmo_tactile_glove/)
+
+ArXiv: [https://arxiv.org/abs/2512.08920](https://arxiv.org/abs/2512.08920)
+
+
 # OSMO Glove Data Pipeline
 
 ### Code has references to "bowie", which was the internal name of OSMO. Bowie and the OSMO glove may be treated as interchangeable when understanding the code.
