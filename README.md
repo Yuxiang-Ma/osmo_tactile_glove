@@ -60,3 +60,15 @@ conda env create -f conda/osmo_kinematics.yml
 
 # Train and Deploy Instructions
 [Policy Training and Deployment](glovedp/README.md)
+
+# BibTeX
+If you find this work helpful, please consider citing:
+
+```
+@article{yin2025osmo,
+    title={OSMO: Open-Source Tactile Glove for Human-to-Robot Skill Transfer},
+    author={Jessica Yin and Haozhi Qi and Youngsun Wi and Sayantan Kundu and Mike Lambeta and William Yang and Changhao Wang and Tingfan Wu and Jitendra Malik and Tess Hellebrekers},
+    journal={arXiv:2512.08920},
+    year={2025}
+}
+```
