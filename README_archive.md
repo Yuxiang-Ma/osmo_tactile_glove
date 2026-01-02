@@ -59,7 +59,7 @@
 2. Extract data from ROS2 bags
     
     ```bash
-    cd ~/human2robot/data_collect/glove/scripts/bowie
+    cd scripts/bowie
     conda activate _metahand #needed for ros2 bag read
     python convert_bag_to_pkl.py
     
@@ -94,8 +94,8 @@
 
     ```bash
     conda activate bowie_
-    cd human2robot
-    python data_collect/glove/labs/glove2robot/postprocess/extract_hamer.py
+    # cd human2robot
+    python labs/glove2robot/postprocess/extract_hamer.py
     ```
     NOTE: Lambda tends to run out of memory for CUDA after processing about 3 trials. Supervise and restart as needed.
 
@@ -104,17 +104,17 @@
     ```bash
     conda activate bowie_
     #legacy, keypoints on rgb only:
-    #python data_collect/glove/scripts/overlay_2d_keypoints.py
-    python data_collect/glove/scripts/plot_keypoints_with_bowie.py
+    #python scripts/overlay_2d_keypoints.py
+    python scripts/plot_keypoints_with_bowie.py
     ```
 
 6. Retarget to Psyonic + Franka joints with Mujoco
 
     ``` bash
     conda activate kinematics
-    cd human2robot
+    # cd human2robot
     #update data_dirs here too
-    python data_collect/glove/kinematics/psyonic_kinematics.py
+    python kinematics/psyonic_kinematics.py
     #key functions: visualize_ik_trajectory - perform ik
     # play_filtered_commands - visualize ik trajectories
 

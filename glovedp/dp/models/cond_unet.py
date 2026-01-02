@@ -1,4 +1,5 @@
 import math
+import os
 from typing import Union
 
 import torch
@@ -201,9 +202,9 @@ class ConditionalUnet1D(nn.Module):
                 ])
                 self.encoders["img_encoder_proj"] = proj
             elif config.data.im_encoder == 'DINOv3':
-                model = torch.hub.load(
-                    '/home/gumdev/dinov3/', 'dinov3_vits16',
-                    source='local', weights='/home/gumdev/dinov3/dinov3.ckpt')
+            self.visual_encoder = torch.hub.load(
+                os.path.expanduser('~/dinov3/'), 'dinov3_vits16',
+                source='local', weights=os.path.expanduser('~/dinov3/dinov3.ckpt'))
                 proj = nn.ModuleList([
                     nn.Linear(384, encoder_config.im_net_output_dim) for i in range(self.image_num)
                 ])

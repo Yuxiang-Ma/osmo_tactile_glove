@@ -26,7 +26,7 @@ def main(cfg: DictConfig):
     if isinstance(data_paths, str):
         data_paths = [data_paths]
     
-    parent_dir = "/home/gumdev/human2robot/"
+    parent_dir = "../../../"
     
     print(f"Processing {len(data_paths)} data directories from config:")
     for path in data_paths:

@@ -140,11 +140,11 @@ def main():
         game_controller.init()
     
     robot_interface = FrankaInterface(
-        "/home/gumdev/human2robot/trajdex/tools/deploy/charmander.yml",
+        "../../../trajdex/tools/deploy/charmander.yml",
         use_visualizer=False
     )
     controller_cfg = YamlConfig(
-        "/home/gumdev/human2robot/trajdex/tools/deploy/joint-impedance-controller.yml"
+        "../../../trajdex/tools/deploy/joint-impedance-controller.yml"
     ).as_easydict()
     controller_type = "JOINT_IMPEDANCE"
 

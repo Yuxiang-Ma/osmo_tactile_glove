@@ -1,5 +1,8 @@
 import sys
-sys.path.insert(0, '/home/gumdev/human2robot/glovedp/')
+import os
+current_dir = os.path.dirname(os.path.abspath(__file__))
+glovedp_root = os.path.join(current_dir, "../../")
+sys.path.insert(0, glovedp_root)
 import time
 import tyro
 import numpy as np
@@ -107,15 +110,15 @@ def main(config):
 
     rclpy.init()
     robot_interface = FrankaInterface(
-        "/home/gumdev/human2robot/trajdex/tools/deploy/charmander.yml",
+        "../../../trajdex/tools/deploy/charmander.yml",
         use_visualizer=False
     )
     controller_cfg = YamlConfig(
-        "/home/gumdev/human2robot/trajdex/tools/deploy/joint-impedance-controller.yml"
+        "../../../trajdex/tools/deploy/joint-impedance-controller.yml"
     ).as_easydict()
     controller_type = "JOINT_IMPEDANCE"
 
-    act_arr = np.load("/home/gumdev/human2robot/data/wipe_sea1/wipe5/robot_cmds.npy")
+    act_arr = np.load("../../../data/wipe_sea1/wipe5/robot_cmds.npy")
     franka_actions = act_arr[:, :7]
     first_joint_pos = franka_actions[0]
     rate_limiter = RateLimiter(20)

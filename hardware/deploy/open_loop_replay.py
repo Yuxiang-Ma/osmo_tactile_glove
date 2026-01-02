@@ -16,7 +16,7 @@ from pathlib import Path
 
 # Add parent directories to path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
-sys.path.append("/home/gumdev/ability-hand-api/python")
+sys.path.append(os.path.expanduser("~/ability-hand-api/python"))
 
 from deoxys import config_root
 from deoxys.franka_interface import FrankaInterface
@@ -154,7 +154,7 @@ class AbilityHandPDController:
 
 class FrankaAbilityReplay:
     def __init__(self, 
-                 franka_config_path="/home/gumdev/gum_ws/src/deoxys_control/deoxys/config/charmander.yml",
+                 franka_config_path=os.path.expanduser("~/gum_ws/src/deoxys_control/deoxys/config/charmander.yml"),
                  replay_rate_hz=30,
                  ability_hand_rate_hz=500,
                  use_pd_controller=True):

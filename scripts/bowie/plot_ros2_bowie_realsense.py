@@ -222,8 +222,8 @@ class PlotSyncedData():
 
    
 def main():
-    filename="/home/gumdev/human2robot/hardware/wave_grasp1/wave_grasp1.pkl"
-    save_path = "/home/gumdev/human2robot/hardware/wave_grasp1/"
+    filename="./hardware/wave_grasp1/wave_grasp1.pkl"
+    save_path = "./hardware/wave_grasp1/"
     plotter = PlotSyncedData(filename, save_path)
 
 if __name__ == "__main__":

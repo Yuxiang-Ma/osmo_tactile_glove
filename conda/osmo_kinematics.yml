@@ -179,4 +179,3 @@ dependencies:
       - traitlets==5.14.3
       - trimesh==4.7.1
       - wcwidth==0.2.13
-prefix: /home/gumdev/miniforge3/envs/osmo_kinematics

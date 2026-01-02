@@ -9,11 +9,11 @@ import pickle
 
 def main():
     # Load images files
-    with open("/home/gumdev/human2robot/data/wipe_sea3/rosbag2_2025_09_14-00_58_10/rgbs_aligned.pkl", "rb") as f:
+    with open("./data/wipe_sea3/rosbag2_2025_09_14-00_58_10/rgbs_aligned.pkl", "rb") as f:
         rgbs = pickle.load(f)
-    with open("/home/gumdev/human2robot/data/wipe_sea3/rosbag2_2025_09_14-00_58_10/left_ir_aligned.pkl", "rb") as f:
+    with open("./data/wipe_sea3/rosbag2_2025_09_14-00_58_10/left_ir_aligned.pkl", "rb") as f:
         left_irs = pickle.load(f)
-    with open("/home/gumdev/human2robot/data/wipe_sea3/rosbag2_2025_09_14-00_58_10/right_ir_aligned.pkl", "rb") as f:
+    with open("./data/wipe_sea3/rosbag2_2025_09_14-00_58_10/right_ir_aligned.pkl", "rb") as f:
         right_irs = pickle.load(f)
     
     avg_rgb = np.mean(rgbs, axis=0).astype(np.uint8)

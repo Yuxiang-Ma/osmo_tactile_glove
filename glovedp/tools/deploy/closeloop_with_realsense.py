@@ -1,5 +1,8 @@
 import sys
-sys.path.insert(0, '/home/gumdev/human2robot/glovedp/')
+import os
+current_dir = os.path.dirname(os.path.abspath(__file__))
+glovedp_root = os.path.join(current_dir, "../../")
+sys.path.insert(0, glovedp_root)
 
 # NumPy compatibility fix for older versions
 try:
@@ -138,15 +141,15 @@ def main(config):
     rgb_subscriber = RGBImageSubscriber(rgb_node, rgb_topic)
 
     robot_interface = FrankaInterface(
-        "/home/gumdev/human2robot/trajdex/tools/deploy/charmander.yml",
+        "../../../trajdex/tools/deploy/charmander.yml",
         use_visualizer=False
     )
     controller_cfg = YamlConfig(
-        "/home/gumdev/human2robot/trajdex/tools/deploy/joint-impedance-controller.yml"
+        "../../../trajdex/tools/deploy/joint-impedance-controller.yml"
     ).as_easydict()
     controller_type = "JOINT_IMPEDANCE"
 
-    act_arr = np.load("/home/gumdev/human2robot/data/wipe_sea1/wipe5/robot_cmds.npy")
+    act_arr = np.load("../../../data/wipe_sea1/wipe5/robot_cmds.npy")
     start_index = 100
     print(len(act_arr))
     franka_actions = act_arr[:, :7]

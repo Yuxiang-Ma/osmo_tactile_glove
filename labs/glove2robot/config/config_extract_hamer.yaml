@@ -24,6 +24,24 @@ polyorder: 3  # Polynomial order for Savitzky-Golay filter
 use_cropped_stereo: true  # Enable cropped stereo processing for faster inference
 crop_padding: 100  # Padding around hand bounding box for cropping (pixels)
 
+# FoundationStereo fallback configuration (used when StereoDepthProcessor is unavailable)
+foundation_stereo_enabled: true
+foundation_stereo_model_id: null  # Optional HuggingFace model id
+foundation_stereo_ckpt_path: null  # Path to a local FoundationStereo checkpoint
+foundation_stereo_iters: 12
+foundation_stereo_low_memory: false
+foundation_stereo_min_disp: 0.1
+foundation_stereo_max_depth: 10.0
+foundation_stereo_return_pointcloud: false
+foundation_stereo_args:
+  hidden_dims: [128, 128, 128]
+  n_gru_layers: 3
+  n_downsample: 2
+  corr_levels: 4
+  corr_radius: 4
+  max_disp: 192
+  mixed_precision: true
+
 # Depth alignment configuration
 depth_alignment_method: "simplified"  # Options: "simplified", "complex", "disabled"
 # simplified: Direct fs_depth lookup (recommended - faster and simpler)
@@ -36,8 +54,8 @@ end_index: -50  # End processing at this frame index (None means process all fra
 # start_index: 25
 # end_index: -1
 
-camera_calibration: "PATH_TO_CAMERA_CALIBRATION" # as (4,4) rigid transform matrix saved to a .npy (numpy array)
-# camera_calibration: "/home/gumdev/human2robot/calibration_data/cam_to_base_sea.npy"
+# camera_calibration: "PATH_TO_CAMERA_CALIBRATION" # as (4,4) rigid transform matrix saved to a .npy (numpy array)
+camera_calibration: "calibration_data/cam_to_base_sea.npy"
 
 # Camera calibration constants
 camera:
@@ -98,7 +116,7 @@ visualization:
 paths:
   # Input data paths - list of directories containing raw .pkl files
   data_path: [
-             "data/wipe_sea3/rosbag2_2025_09_14-00_55_12/", 
+             "data/00/", 
              ]
   
   # Raw data path (used for input)
@@ -108,7 +126,7 @@ paths:
   out_data_path: '${paths.data_path}'
 
   # HaMeR model configuration
-  hamer_repo_path: '/home/gumdev/hamer'
+  hamer_repo_path: "/home/yxma/src/osmo_tactile_glove/hamer"
   CACHE_DIR_HAMER: '${paths.hamer_repo_path}/_DATA'
   hamer_ckpt_path: '${paths.CACHE_DIR_HAMER}/hamer_ckpts/checkpoints/hamer.ckpt'
 

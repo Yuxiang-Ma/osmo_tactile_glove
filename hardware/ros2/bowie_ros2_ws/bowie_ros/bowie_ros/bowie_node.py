@@ -70,7 +70,12 @@ colcon build --packages-select bowie_ros
 
 """
 import sys
-sys.path.append('/home/gumdev/human2robot/hardware/ros2/bowie_ros2_ws/bowie_ros/bowie_ros/glove2robot/')
+import os
+# Add path to glove2robot
+current_dir = os.path.dirname(os.path.abspath(__file__))
+# ../../../../../../labs/glove2robot
+glove2robot_path = os.path.join(current_dir, "../../../../../../labs/glove2robot")
+sys.path.append(glove2robot_path)
 import rclpy
 from rclpy.node import Node
 import serial

@@ -18,6 +18,42 @@ Key Features:
 import argparse
 import os
 import sys
+import traceback
+
+# Force Qt offscreen to avoid XCB errors
+os.environ["QT_QPA_PLATFORM"] = "offscreen"
+
+# NumPy compatibility fix for older versions (NumPy 1.x running code expecting 2.x)
+try:
+    import numpy._core
+except ImportError:
+    try:
+        import numpy.core as _core
+        import sys
+        sys.modules['numpy._core'] = _core
+        if hasattr(_core, '_exceptions'):
+            sys.modules['numpy._core._exceptions'] = _core._exceptions
+        if hasattr(_core, 'numeric'):
+            sys.modules['numpy._core.numeric'] = _core.numeric
+        
+        # Explicitly patch numpy module
+        import numpy
+        if not hasattr(numpy, '_core'):
+            numpy._core = _core
+            
+        # Verify
+        import numpy._core.numeric
+        print("NumPy 2.x compatibility layer active")
+    except ImportError as e:
+        print(f"Warning: Failed to setup NumPy compatibility layer: {e}")
+
+# Pillow 10.0.0 compatibility fix for older detectron2
+import PIL.Image
+if not hasattr(PIL.Image, 'LINEAR'):
+    PIL.Image.LINEAR = PIL.Image.BILINEAR
+if not hasattr(PIL.Image, 'ANTIALIAS'):
+    PIL.Image.ANTIALIAS = getattr(PIL.Image, 'LANCZOS', PIL.Image.BICUBIC)
+
 import gc
 import copy
 import pickle
@@ -119,8 +155,14 @@ def emergency_cleanup():
 
 # HaMeR imports
 try:
+    # Add hamer submodule to path if present
+    hamer_repo_path = os.path.join(os.getcwd(), 'hamer')
+    if os.path.exists(hamer_repo_path) and hamer_repo_path not in sys.path:
+        sys.path.insert(0, hamer_repo_path)
+        print(f"Added {hamer_repo_path} to sys.path to support HaMeR import")
+
     import hamer
-    print(sys.modules['hamer'].__file__)  # check location of hamer
+    print(f"HaMeR location: {sys.modules['hamer'].__file__}")  # check location of hamer
     from hamer.vitpose_model import ViTPoseModel
     from hamer.models import HAMER, download_models, load_hamer, DEFAULT_CHECKPOINT
     from hamer.utils import recursive_to
@@ -129,15 +171,29 @@ try:
     from hamer.utils.utils_detectron2 import DefaultPredictor_Lazy
     from detectron2.config import LazyConfig
 except ImportError as e:
-    print(f"Warning: HaMeR imports failed: {e}")
+    print(f"CRITICAL ERROR: HaMeR imports failed: {e}")
+    import traceback
+    traceback.print_exc()
+    sys.exit(1)
 
 # Other imports
 try:
     from glove2robot.utils.bowie_data import BowieSyncData
-    from mmint_foundationstereo.stereo_offline import StereoDepthProcessor
     from glove2robot.utils.hamer_utils import *
 except ImportError as e:
-    print(f"Warning: Some imports failed: {e}")
+    print(f"Warning: glove2robot imports failed: {e}")
+
+try:
+    from mmint_foundationstereo.stereo_offline import StereoDepthProcessor
+except ImportError as e:
+    StereoDepthProcessor = None
+    print(f"Warning: StereoDepthProcessor import failed: {e}")
+
+try:
+    from mmint_foundationstereo import FoundationStereo
+except ImportError as e:
+    FoundationStereo = None
+    print(f"Warning: FoundationStereo import failed: {e}")
 
 
 def visualize_alignment_headless(aligned_mesh, original_mesh, hand_pcd, save_folder = "~/human2robot/", frame_idx=0):
@@ -885,6 +941,192 @@ def initialize_camera_constants(cfg):
 
 
 # ============================================================================
+# STEREO PROCESSOR FALLBACK
+# ============================================================================
+
+class FoundationStereoProcessor:
+    def __init__(self, color_intrinsic, depth_intrinsic, extrinsics, baseline, cfg: DictConfig):
+        self.color_intrinsic = color_intrinsic
+        self.depth_intrinsic = depth_intrinsic
+        self.extrinsics = extrinsics
+        self.baseline = baseline
+        self.cfg = cfg
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.model = None
+        self.ready = False
+        self._init_model()
+
+    def _cfg_get(self, key, default=None):
+        if self.cfg is None:
+            return default
+        if hasattr(self.cfg, "get"):
+            return self.cfg.get(key, default)
+        return getattr(self.cfg, key, default)
+
+    def _build_args(self):
+        default_args = {
+            "hidden_dims": [128, 128, 128],
+            "n_gru_layers": 3,
+            "n_downsample": 2,
+            "corr_levels": 4,
+            "corr_radius": 4,
+            "max_disp": 192,
+            "mixed_precision": True,
+            "low_memory": False,
+        }
+        args = OmegaConf.create(default_args)
+        cfg_args = self._cfg_get("foundation_stereo_args", None)
+        if cfg_args:
+            args = OmegaConf.merge(args, cfg_args)
+        return args
+
+    def _strip_prefix(self, state_dict, prefix):
+        if all(k.startswith(prefix) for k in state_dict.keys()):
+            return {k[len(prefix):]: v for k, v in state_dict.items()}
+        return state_dict
+
+    def _load_checkpoint(self, model, ckpt_path):
+        ckpt_path = os.path.expanduser(ckpt_path)
+        if not os.path.exists(ckpt_path):
+            print(f"Warning: FoundationStereo checkpoint not found: {ckpt_path}")
+            return False
+        state = torch.load(ckpt_path, map_location="cpu")
+        if isinstance(state, dict) and "state_dict" in state:
+            state = state["state_dict"]
+        if not isinstance(state, dict):
+            print("Warning: FoundationStereo checkpoint format not recognized")
+            return False
+        state = self._strip_prefix(state, "module.")
+        state = self._strip_prefix(state, "model.")
+        missing, unexpected = model.load_state_dict(state, strict=False)
+        if missing:
+            print(f"Warning: FoundationStereo missing keys: {len(missing)}")
+        if unexpected:
+            print(f"Warning: FoundationStereo unexpected keys: {len(unexpected)}")
+        return True
+
+    def _init_model(self):
+        if not self._cfg_get("foundation_stereo_enabled", True):
+            print("FoundationStereo disabled by configuration")
+            return
+        if FoundationStereo is None:
+            print("FoundationStereo not available for stereo processing")
+            return
+
+        args = self._build_args()
+        model_id = self._cfg_get("foundation_stereo_model_id", None)
+        ckpt_path = self._cfg_get("foundation_stereo_ckpt_path", None)
+
+        if not model_id and not ckpt_path:
+            print("FoundationStereo available but no model_id or checkpoint configured")
+            return
+
+        if model_id:
+            try:
+                self.model = FoundationStereo.from_pretrained(model_id, args=args)
+                print(f"Loaded FoundationStereo from model_id: {model_id}")
+            except Exception as e:
+                print(f"FoundationStereo model_id load failed: {e}")
+                self.model = None
+
+        if self.model is None:
+            self.model = FoundationStereo(args)
+            if ckpt_path:
+                if not self._load_checkpoint(self.model, ckpt_path):
+                    self.model = None
+            else:
+                self.model = None
+
+        if self.model is None:
+            print("FoundationStereo initialization incomplete; stereo disabled")
+            return
+
+        self.model = self.model.to(self.device)
+        self.model.eval()
+        self.ready = True
+
+    def _prepare_image(self, img: np.ndarray):
+        if img is None:
+            return None
+        if img.ndim == 2:
+            img = img[:, :, None]
+        if img.ndim == 3 and img.shape[2] == 1:
+            img = np.repeat(img, 3, axis=2)
+        img = img.astype(np.float32)
+        max_val = float(np.max(img)) if img.size else 0.0
+        if max_val <= 1.0:
+            img = img * 255.0
+        elif max_val > 255.0 and max_val > 0:
+            img = img * (255.0 / max_val)
+        tensor = torch.from_numpy(img).permute(2, 0, 1).unsqueeze(0).contiguous()
+        return tensor.to(self.device)
+
+    def _depth_to_pointcloud(self, depth: np.ndarray, intrinsic: np.ndarray, rgb: np.ndarray = None):
+        h, w = depth.shape[:2]
+        ys, xs = np.meshgrid(np.arange(h), np.arange(w), indexing="ij")
+        fx, fy = intrinsic[0, 0], intrinsic[1, 1]
+        cx, cy = intrinsic[0, 2], intrinsic[1, 2]
+        z = depth
+        x = (xs - cx) * z / fx
+        y = (ys - cy) * z / fy
+        points = np.stack([x, y, z], axis=-1).reshape(-1, 3)
+        pointcloud = {"points": points}
+        if rgb is not None and rgb.ndim >= 2 and rgb.shape[:2] == depth.shape[:2]:
+            if rgb.ndim == 2:
+                rgb = np.repeat(rgb[:, :, None], 3, axis=2)
+            pointcloud["rgb"] = rgb.reshape(-1, rgb.shape[2])
+        return pointcloud
+
+    def process_images(self, left_ir, right_ir, rgb, color_intrinsic=None, depth_intrinsic=None):
+        if not self.ready or self.model is None:
+            return None, None
+        if left_ir is None or right_ir is None:
+            return None, None
+
+        left = self._prepare_image(left_ir)
+        right = self._prepare_image(right_ir)
+        if left is None or right is None:
+            return None, None
+
+        iters = int(self._cfg_get("foundation_stereo_iters", 12))
+        low_memory = bool(self._cfg_get("foundation_stereo_low_memory", False))
+
+        try:
+            with torch.no_grad():
+                disp = self.model.run_hierachical(
+                    left, right, iters=iters, test_mode=True, low_memory=low_memory
+                )
+        except Exception as e:
+            print(f"FoundationStereo inference failed: {e}")
+            return None, None
+
+        disp = disp.squeeze().detach().cpu().numpy()
+        if disp.ndim != 2:
+            print(f"FoundationStereo unexpected disparity shape: {disp.shape}")
+            return None, None
+
+        min_disp = float(self._cfg_get("foundation_stereo_min_disp", 0.1))
+        disp = np.maximum(disp, min_disp)
+
+        intrinsic = depth_intrinsic if depth_intrinsic is not None else self.depth_intrinsic
+        if intrinsic is None:
+            print("Warning: Missing depth intrinsics for disparity-to-depth conversion")
+            return None, None
+        fx = float(intrinsic[0, 0])
+        depth = (self.baseline * fx) / disp
+
+        max_depth = self._cfg_get("foundation_stereo_max_depth", None)
+        if max_depth is not None:
+            depth = np.clip(depth, 0.0, float(max_depth))
+
+        pointcloud = None
+        if self._cfg_get("foundation_stereo_return_pointcloud", False):
+            pointcloud = self._depth_to_pointcloud(depth, intrinsic, rgb)
+
+        return depth.astype(np.float32), pointcloud
+
+
+# ============================================================================
 # CORE CLASSES
 # ============================================================================
 
@@ -969,8 +1211,38 @@ class GlovePoseTracker:
         # self.rs_depth = np.asarray(pickle.load(open(path + "depth_aligned.pkl", "rb")))
         self.left_ir = np.asarray(pickle.load(open(path + "left_ir_aligned.pkl", "rb")))
         self.right_ir = np.asarray(pickle.load(open(path + "right_ir_aligned.pkl", "rb")))
-        bowie_data = np.asarray(pickle.load(open(path + "synced_mags_aligned.pkl", "rb")), dtype="object")
-        bowie_data = bowie_data.reshape((bowie_data.shape[0],10,4))
+        bowie_data = np.asarray(pickle.load(open(path + "synced_mags_aligned_1.pkl", "rb")), dtype="object")
+        
+        # print the shape of all loaded data
+        print(f"Loaded Realsense color data shape: {self.rs_color.shape}")
+        print(f"Loaded left IR data shape: {self.left_ir.shape}")
+        print(f"Loaded right IR data shape: {self.right_ir.shape}")
+        print(f"Loaded Bowie data shape: {bowie_data.shape}")
+        # Handle compact data format (timestamp, list_of_30_floats)
+        # Check if shape is (N, 2) and second element is a sequence of length 30
+        is_compact = False
+        if bowie_data.ndim == 2 and bowie_data.shape[1] == 2:
+            sample_val = bowie_data[0, 1]
+            if (isinstance(sample_val, list) or isinstance(sample_val, np.ndarray)) and len(sample_val) == 30:
+                is_compact = True
+
+        if is_compact:
+            print("Detected compact Bowie data format. Converting to (N, 10, 4)...")
+            new_data = []
+            for i in range(len(bowie_data)):
+                ts = bowie_data[i, 0]
+                vals = np.array(bowie_data[i, 1])
+                # vals is (30,) -> (10, 3)
+                vals_reshaped = vals.reshape(10, 3)
+                # Create (10, 4) with ts
+                block = np.zeros((10, 4))
+                block[:, 0] = ts
+                block[:, 1:] = vals_reshaped
+                new_data.append(block)
+            bowie_data = np.array(new_data)
+        else:
+            bowie_data = bowie_data.reshape((bowie_data.shape[0],10,4))
+            
         self.bowie_data = bowie_data[:,:,1:]
         # self.bowie_data = bowie_data[:,1] 
     
@@ -981,7 +1253,14 @@ class GlovePoseTracker:
         
         # Store current directory and change to HaMeR directory
         original_dir = os.getcwd()
-        hamer_dir = os.path.dirname(os.path.dirname(os.path.abspath(hamer.__file__)))
+        
+        if hasattr(hamer, '__file__') and hamer.__file__ is not None:
+            hamer_dir = os.path.dirname(os.path.dirname(os.path.abspath(hamer.__file__)))
+        else:
+            # Fallback if __file__ is missing
+            hamer_dir = os.path.abspath("hamer")
+            
+        print(f"Setting working directory to HaMeR root: {hamer_dir}")
         os.chdir(hamer_dir)
         
         try:
@@ -1069,15 +1348,30 @@ class GlovePoseTracker:
 
     def _init_stereo_processor(self):
         """Initialize stereo depth processor."""
-        try:
-            print("Initializing stereo depth processor...")
-            self.processor = StereoDepthProcessor(
-                COLOR_INTRINSIC, DEPTH_INTRINSIC, EXTRINSICS, BASELINE
-            )
-            print("Stereo processor initialization complete")
-        except Exception as e:
-            print(f"Warning: Stereo processor initialization failed: {e}")
-            self.processor = None
+        print("Initializing stereo depth processor...")
+        if StereoDepthProcessor is not None:
+            try:
+                self.processor = StereoDepthProcessor(
+                    COLOR_INTRINSIC, DEPTH_INTRINSIC, EXTRINSICS, BASELINE
+                )
+                print("Stereo processor initialization complete")
+                return
+            except Exception as e:
+                print(f"Warning: StereoDepthProcessor initialization failed: {e}")
+
+        if FoundationStereo is not None:
+            try:
+                self.processor = FoundationStereoProcessor(
+                    COLOR_INTRINSIC, DEPTH_INTRINSIC, EXTRINSICS, BASELINE, self.cfg
+                )
+                if self.processor.ready:
+                    print("FoundationStereo processor initialization complete")
+                    return
+                print("FoundationStereo processor not ready; stereo disabled")
+            except Exception as e:
+                print(f"Warning: FoundationStereo initialization failed: {e}")
+
+        self.processor = None
     
     def _detect_hands_vit(self, img_cv2: np.ndarray) -> tuple:
         """
@@ -1286,7 +1580,7 @@ class GlovePoseTracker:
             Tuple of (fs_depth, pointcloud) or (None, None) if processing fails
         """
         if self.processor is None or rs_ir1 is None or rs_ir2 is None:
-            return None, None, None, None, None
+            return None, [], [], None, None
             
         # Check if cropped stereo processing is enabled
         use_cropped = self.cfg.get('use_cropped_stereo', False)
@@ -1309,7 +1603,7 @@ class GlovePoseTracker:
                 return fs_depth, boxes, right_flags, mask, None  # No crop_info for full processing
             except Exception as e:
                 print(f"Full stereo processing failed for frame {frame_idx}: {e}")
-                return None, None, None, None, None
+                return None, [], [], None, None
         
         # Cropped stereo processing
         try:
@@ -1332,7 +1626,7 @@ class GlovePoseTracker:
                     return fs_depth, boxes, right_flags, mask, None  # No crop_info for full processing
                 except Exception as e:
                     print(f"Fallback full stereo processing failed: {e}")
-                    return None, None, None, None, None
+                    return None, [], [], None, None
             
             if len(boxes) == 0:
                 print(f"Frame {frame_idx}: No hands detected, falling back to full stereo processing")
@@ -1341,7 +1635,7 @@ class GlovePoseTracker:
                     return fs_depth, boxes, right_flags, mask, None  # No crop_info for full processing
                 except Exception as e:
                     print(f"Fallback full stereo processing failed: {e}")
-                    return None, None, None, None, None
+                    return None, [], [], None, None
             
             # Use the first detected hand bounding box for cropping
             hand_bbox = boxes[0]  # [x_min, y_min, x_max, y_max]
@@ -1358,7 +1652,7 @@ class GlovePoseTracker:
                     return fs_depth, boxes, right_flags, mask, None  # No crop_info for full processing
                 except Exception as e:
                     print(f"Fallback full stereo processing failed: {e}")
-                    return None, None, None, None, None
+                    return None, [], [], None, None
             
             # Adjust camera intrinsics for cropped images
             adj_color_intrinsic, adj_depth_intrinsic = adjust_camera_intrinsics_for_crop(crop_info)
@@ -1378,7 +1672,7 @@ class GlovePoseTracker:
                 return fs_depth, boxes, right_flags, mask, None  # No crop_info for full processing
             except Exception as e2:
                 print(f"Frame {frame_idx}: Full stereo processing also failed: {e2}")
-                return None, None, None, None, None
+                return None, [], [], None, None
 
     def _process_single_frame(self, frame_idx, img_cv2: np.ndarray, boxes, right_flags, mask, 
                              fs_depth: np.ndarray = None, crop_info: dict = None) -> tuple:
@@ -1551,57 +1845,63 @@ class GlovePoseTracker:
             all_uncorrected_keypoints = []
             
             print(f"Processing {len(self.rs_color)} frames...")
-            for frame_idx in tqdm(range(self.start_idx,len(self.rs_color)+self.end_idx)):
+            
+            # Initialize stereo processor once if needed
+            if self.processor is None:
                 try:
-                    img = self.rs_color[frame_idx]
-                    
-                    # Process stereo depth with optional cropping optimization
-                    pointcloud = None
-                    fs_depth = None
-                    
-                    # Initialize stereo processor if not already done
-                    if self.processor is None:
-                        self._init_stereo_processor()
-                    
-                    # Process stereo depth (with optional cropping)
-                    fs_depth, boxes, right_flags, mask, crop_info = self._process_stereo_with_optional_cropping(
-                        frame_idx, img, rs_ir1[frame_idx] if rs_ir1 is not None else None,
-                        rs_ir2[frame_idx] if rs_ir2 is not None else None
-                    )
-                
-                    # Process frame
-                    mesh, overlay, kp_2d, kp_3d, wrist, mask, uncorrected_keypoints = self._process_single_frame(
-                        frame_idx, img, boxes, right_flags, mask, fs_depth=fs_depth, crop_info=crop_info
-                    )
-
-                    # Store results
-                    hand_objs.append(mesh)
-                    img_overlays.append(overlay)
-                    hand_masks.append(mask)
-                    all_uncorrected_keypoints.append(uncorrected_keypoints)
-
-                    if kp_2d is not None and kp_3d is not None and wrist is not None:
-                        keypoints.append((kp_2d, kp_3d, wrist))
-                    else:
-                        keypoints.append((None, None, None))
-                    
-                    # Clean up frame-specific variables to reduce memory usage
-                    cleanup_variables(fs_depth, pointcloud, crop_info)
-                    
-                    # Force garbage collection every 20 frames
-                    if frame_idx % 20 == 0:
-                        cleanup_memory()
-                        
+                    self._init_stereo_processor()
                 except Exception as e:
-                    print(f"Error processing frame {frame_idx}: {e}")
+                    print(f"Warning: Global stereo processor initialization failed: {e}")
+
+            for frame_idx in tqdm(range(self.start_idx,len(self.rs_color)+self.end_idx)):
+                if frame_idx >= len(self.rs_color) or frame_idx < 0:
+                    continue
+                # try:
+                img = self.rs_color[frame_idx]
+                
+                # Process stereo depth with optional cropping optimization
+                pointcloud = None
+                fs_depth = None
+                
+                # Process stereo depth (with optional cropping)
+                fs_depth, boxes, right_flags, mask, crop_info = self._process_stereo_with_optional_cropping(
+                    frame_idx, img, rs_ir1[frame_idx] if rs_ir1 is not None else None,
+                    rs_ir2[frame_idx] if rs_ir2 is not None else None
+                )
+            
+                # Process frame
+                mesh, overlay, kp_2d, kp_3d, wrist, mask, uncorrected_keypoints = self._process_single_frame(
+                    frame_idx, img, boxes, right_flags, mask, fs_depth=fs_depth, crop_info=crop_info
+                )
+
+                # Store results
+                hand_objs.append(mesh)
+                img_overlays.append(overlay)
+                hand_masks.append(mask)
+                all_uncorrected_keypoints.append(uncorrected_keypoints)
+
+                if kp_2d is not None and kp_3d is not None and wrist is not None:
+                    keypoints.append((kp_2d, kp_3d, wrist))
+                else:
+                    keypoints.append((None, None, None))
+                
+                # Clean up frame-specific variables to reduce memory usage
+                cleanup_variables(fs_depth, pointcloud, crop_info)
+                
+                # Force garbage collection every 20 frames
+                if frame_idx % 20 == 0:
+                    cleanup_memory()
+                        
+                # except Exception as e:
+                #     print(f"Error processing frame {frame_idx}: {e}")
                 
                     
-                    # Add empty results for failed frame
-                    hand_objs.append(trimesh.Trimesh())
-                    img_overlays.append(np.zeros_like(self.rs_color[0], dtype=np.float32))
-                    hand_masks.append(None)
-                    all_uncorrected_keypoints.append(None)
-                    keypoints.append((None, None, None))
+                #     # Add empty results for failed frame
+                #     hand_objs.append(trimesh.Trimesh())
+                #     img_overlays.append(np.zeros_like(self.rs_color[0], dtype=np.float32))
+                #     hand_masks.append(None)
+                #     all_uncorrected_keypoints.append(None)
+                #     keypoints.append((None, None, None))
             
             # Save processed data
             self.save_data(self.rs_color, rs_ir1, rs_ir2,
@@ -1612,6 +1912,7 @@ class GlovePoseTracker:
             print("Processing interrupted by user")
         except Exception as e:
             print(f"Error processing file {filepath}: {e}")
+            traceback.print_exc()
        
     
     def save_data(self, rs_color: np.ndarray,
@@ -1635,14 +1936,29 @@ class GlovePoseTracker:
         """
         print(f"Saving processed data to {filename}...")
         
+        # Prepare keypoints data while handling None values with consistent shapes
+        pred_kpts_2d = []
+        pred_kpts_3d = []
+        wrists = []
+        for kp in keypoints:
+            # HaMeR/MANO uses 21 keypoints
+            pred_kpts_2d.append(kp[0] if kp[0] is not None else np.zeros((21, 2)))
+            pred_kpts_3d.append(kp[1] if kp[1] is not None else np.zeros((21, 3)))
+            # Wrist is often (3, 3) or similar depending on representation
+            # But here kp[2] is likely the wrist keypoint or pose.
+            # If it's a single keypoint, it's (3,). If it's pose, maybe (3,3).
+            # The error says "array is 1-dimensional, but 3 were indexed" for uk[:, 0, 2]
+            # This implies uk is (N, 21, 3).
+            wrists.append(kp[2] if kp[2] is not None else np.eye(4))
+
         data_dict = {
             "rs_color": self.rs_color,
             "fs_depth": None,  # Placeholder for FoundationStereo depth
             "crop_info": None,  # Placeholder for cropping info
-            "pred_keypoints_2d": np.array([item[0] for item in keypoints]),
-            "pred_keypoints_3d": np.array([item[1] for item in keypoints]),
-            "uncorrected_keypoints": uncorrected_keypoints,
-            "wrist": np.array([item[2] for item in keypoints]),
+            "pred_keypoints_2d": np.stack(pred_kpts_2d).astype(np.float32),
+            "pred_keypoints_3d": np.stack(pred_kpts_3d).astype(np.float32),
+            "uncorrected_keypoints": np.stack([uk if uk is not None else np.zeros((21, 3)) for uk in uncorrected_keypoints]).astype(np.float32),
+            "wrist": np.stack(wrists).astype(np.float32),
             "glove": self.bowie_data,
         }
         
@@ -1659,19 +1975,28 @@ class GlovePoseTracker:
         print(f"Statistics: {len(self.rs_color)} total frames, {hand_frames} with hands, {no_hand_frames} without hands")
 
         import matplotlib.pyplot as plt
-        #corrected vs uncorrected wrist keypoints
-        uk = np.asarray(uncorrected_keypoints)
-        ck = np.array([item[1] for item in keypoints])
-        plt.figure(figsize=(10, 5))
-        plt.plot(uk[:, 0, 2], label='Uncorrected Wrist Z', color='r')
-        plt.plot(ck[:, 0, 2], label='Corrected Wrist Z', color='g')
-        plt.xlabel('Frame Index')
-        plt.ylabel('Z Coordinate (m)')
-        plt.title('Wrist Keypoint Z Coordinate: Corrected vs Uncorrected')
-        plt.legend()
-        plt.grid()
-        plt.savefig(os.path.join(self.out_folder, "wrist_z_comparison.png"))
-        plt.close()
+        try:
+            # corrected vs uncorrected wrist keypoints
+            uk = data_dict["uncorrected_keypoints"]
+            ck = data_dict["pred_keypoints_3d"]
+            
+            # Check if we have valid data to plot
+            if uk.ndim >= 3 and ck.ndim >= 3 and len(uk) > 0:
+                plt.figure(figsize=(10, 5))
+                # Only plot if we have data at index 0, 2
+                plt.plot(uk[:, 0, 2], label='Uncorrected Wrist Z', color='r')
+                plt.plot(ck[:, 0, 2], label='Corrected Wrist Z', color='g')
+                plt.xlabel('Frame Index')
+                plt.ylabel('Z Coordinate (m)')
+                plt.title('Wrist Keypoint Z Coordinate: Corrected vs Uncorrected')
+                plt.legend()
+                plt.grid()
+                plt.savefig(os.path.join(self.out_folder, "wrist_z_comparison.png"))
+                plt.close()
+            else:
+                print("Skipping wrist plot: insufficient or invalid keypoint data")
+        except Exception as viz_e:
+            print(f"Warning: Could not generate wrist comparison plot: {viz_e}")
     
     def cleanup(self):
         """Clean up GPU memory and model references."""
@@ -1764,7 +2089,9 @@ def main() -> None:
             print("-" * 50)
             
         except Exception as e:
-            print(f"Error processing {raw_data_path}: {e}")        
+            import traceback
+            traceback.print_exc()
+            print(f"Error processing {raw_data_path}: {e}")
             
             # Cleanup on error
             if 'glove_tracker' in locals():

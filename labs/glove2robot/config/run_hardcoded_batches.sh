@@ -6,7 +6,7 @@
 set -e  # Exit on any error
 
 # Configuration
-SCRIPT_PATH="data_collect/glove/labs/glove2robot/postprocess/extract_hamer.py"
+SCRIPT_PATH="labs/glove2robot/postprocess/extract_hamer.py"
 
 # Hardcoded Python commands for each batch
 COMMANDS=(

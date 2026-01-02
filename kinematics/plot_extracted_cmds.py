@@ -107,7 +107,7 @@ def main():
     
     data_dirs = []
     for i in range(8, 9):
-        data_dirs.append(f"/home/gumdev/human2robot/data/wipe1/grid_all{i}")
+    # data_dirs.append(f"./data/wipe1/grid_all{i}")
 
     for folder_path in data_dirs:
         print(f"Processing folder: {folder_path}")

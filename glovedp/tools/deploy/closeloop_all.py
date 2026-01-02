@@ -1,5 +1,8 @@
 import sys
-sys.path.insert(0, '/home/gumdev/human2robot/glovedp/')
+import os
+current_dir = os.path.dirname(os.path.abspath(__file__))
+glovedp_root = os.path.join(current_dir, "../../")
+sys.path.insert(0, glovedp_root)
 
 # NumPy compatibility fix for older versions
 try:
@@ -228,20 +231,20 @@ def save_logs(log_folder, obs_dicts, pred_actions):
 def main(config):
     global robot_interface, controller_type, controller_cfg, log_folder, obs_dicts, pred_actions, collect_logs
 
-    init_pos0 = np.load("/home/gumdev/human2robot/data/wipe_sea3/rosbag2_2025_09_14-01_09_18/robot_cmds.npy")[60, :]
-    init_pos1 = np.load("/home/gumdev/human2robot/data/wipe_sea3/rosbag2_2025_09_13-23_13_34/robot_cmds.npy")[60, :]
-    init_pos2 = np.load("/home/gumdev/human2robot/data/wipe_sea3/rosbag2_2025_09_14-01_09_43/robot_cmds.npy")[60, :] 
+    init_pos0 = np.load("../../../data/wipe_sea3/rosbag2_2025_09_14-01_09_18/robot_cmds.npy")[60, :]
+    init_pos1 = np.load("../../../data/wipe_sea3/rosbag2_2025_09_13-23_13_34/robot_cmds.npy")[60, :]
+    init_pos2 = np.load("../../../data/wipe_sea3/rosbag2_2025_09_14-01_09_43/robot_cmds.npy")[60, :] 
     #test beginning trajectory 10/27
-    # init_pos2 = np.load("/home/gumdev/human2robot/data/wipe_sea3/rosbag2_2025_09_14-01_09_43/robot_cmds.npy")[0,:]
-    init_pos3 = np.load("/home/gumdev/human2robot/data/wipe_sea3/rosbag2_2025_09_13-23_31_59/robot_cmds.npy")[60, :]
-    # init_pos4 = np.load("/home/gumdev/human2robot/data/wipe_sea3/rosbag2_2025_09_13-23_23_26/robot_cmds.npy")[60, :]
+    # init_pos2 = np.load("../../../data/wipe_sea3/rosbag2_2025_09_14-01_09_43/robot_cmds.npy")[0,:]
+    init_pos3 = np.load("../../../data/wipe_sea3/rosbag2_2025_09_13-23_31_59/robot_cmds.npy")[60, :]
+    # init_pos4 = np.load("../../../data/wipe_sea3/rosbag2_2025_09_13-23_23_26/robot_cmds.npy")[60, :]
 
     #test beginning trajectory 10/27
-    init_pos4 = np.load("/home/gumdev/human2robot/data/wipe_sea3/rosbag2_2025_09_14-01_06_17/robot_cmds.npy")[0, :]
-    # init_pos5 = np.load("/home/gumdev/human2robot/data/wipe_sea3/rosbag2_2025_09_14-00_58_10/robot_cmds.npy")[60, :]
+    init_pos4 = np.load("../../../data/wipe_sea3/rosbag2_2025_09_14-01_06_17/robot_cmds.npy")[0, :]
+    # init_pos5 = np.load("../../../data/wipe_sea3/rosbag2_2025_09_14-00_58_10/robot_cmds.npy")[60, :]
 
     #init position from different dataset
-    init_pos5 = np.load("/home/gumdev/human2robot/data/wipe_sea1/wipe3/robot_cmds.npy")[0, :]
+    init_pos5 = np.load("../../../data/wipe_sea1/wipe3/robot_cmds.npy")[0, :]
     
     
     init_positions = [init_pos0, init_pos1, init_pos2, init_pos3, init_pos4, init_pos5]
@@ -251,18 +254,18 @@ def main(config):
 
 
     #FOR BOWIE EXPERIMENTS
-    # training_data_norm = pickle.load(open("/home/gumdev/human2robot/glovedp/outputs/0919_state_dinov2_delta_touch_small_ddpm/norm.pkl", "rb"))
+    # training_data_norm = pickle.load(open("../../../glovedp/outputs/0919_state_dinov2_delta_touch_small_ddpm/norm.pkl", "rb"))
     # lower_touch = training_data_norm["delta_touch"]["lower"]
     # upper_touch = training_data_norm["delta_touch"]["upper"] 
 
 
     # Initialize robot interface and controller configuration
     robot_interface = FrankaInterface(
-        "/home/gumdev/human2robot/trajdex/tools/deploy/charmander.yml",
+        "../../../trajdex/tools/deploy/charmander.yml",
         use_visualizer=False
     )
     controller_cfg = YamlConfig(
-        "/home/gumdev/human2robot/trajdex/tools/deploy/joint-impedance-controller.yml"
+        "../../../trajdex/tools/deploy/joint-impedance-controller.yml"
     ).as_easydict()
     controller_type = "JOINT_IMPEDANCE"
 

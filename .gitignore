@@ -19,3 +19,9 @@ dist/
 *.log
 *.out
 *.pdf
+
+# data
+data/
+
+# third party packages 
+hamer/
