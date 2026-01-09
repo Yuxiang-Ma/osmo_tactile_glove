@@ -1212,7 +1212,16 @@ class GlovePoseTracker:
         self.left_ir = np.asarray(pickle.load(open(path + "left_ir_aligned.pkl", "rb")))
         self.right_ir = np.asarray(pickle.load(open(path + "right_ir_aligned.pkl", "rb")))
         bowie_data = np.asarray(pickle.load(open(path + "synced_mags_aligned_1.pkl", "rb")), dtype="object")
-        
+
+        # Option to load only a subset of frames to save memory and processing time
+        max_frames = self.cfg.get('max_frames_to_load', None)
+        if max_frames is not None and max_frames > 0:
+            print(f"Loading only first {max_frames} frames (out of {len(self.rs_color)} total)")
+            self.rs_color = self.rs_color[:max_frames]
+            self.left_ir = self.left_ir[:max_frames]
+            self.right_ir = self.right_ir[:max_frames]
+            bowie_data = bowie_data[:max_frames]
+
         # print the shape of all loaded data
         print(f"Loaded Realsense color data shape: {self.rs_color.shape}")
         print(f"Loaded left IR data shape: {self.left_ir.shape}")
@@ -1314,12 +1323,12 @@ class GlovePoseTracker:
             from lang_sam import LangSAM
             print("Initializing LangSAM...")
             
-            # Try different initialization approaches
+            # Try different initialization approaches with CPU device to avoid GPU memory issues
             initialization_methods = [
-                lambda: LangSAM(sam_type="sam2.1_hiera_small"),
-                lambda: LangSAM(sam_type="sam2.1_hiera_base"),  
-                lambda: LangSAM(sam_type="sam2_hiera_small"),
-                lambda: LangSAM(),  # Default
+                lambda: LangSAM(sam_type="sam2.1_hiera_small", device="cpu"),
+                lambda: LangSAM(sam_type="sam2.1_hiera_base", device="cpu"),
+                lambda: LangSAM(sam_type="sam2_hiera_small", device="cpu"),
+                lambda: LangSAM(device="cpu"),  # Default with CPU
             ]
             
             for i, init_method in enumerate(initialization_methods):
@@ -1579,9 +1588,24 @@ class GlovePoseTracker:
         Returns:
             Tuple of (fs_depth, pointcloud) or (None, None) if processing fails
         """
-        if self.processor is None or rs_ir1 is None or rs_ir2 is None:
-            return None, [], [], None, None
-            
+        # Check if stereo processing is available
+        stereo_available = (self.processor is not None and rs_ir1 is not None and rs_ir2 is not None)
+
+        # If stereo processing is not available, still do hand detection but skip depth processing
+        if not stereo_available:
+            # print(f"Frame {frame_idx}: Stereo processing not available, doing hand detection only")
+            bb_model = self.cfg.get('bb_model', 'sam')
+            mask = None
+
+            if bb_model == "vit":
+                boxes, right_flags = self._detect_hands_vit(img_cv2)
+            elif bb_model == "sam":
+                boxes, right_flags, mask = self._detect_hands_sam(img_cv2)
+            else:
+                boxes, right_flags = [], []
+
+            return None, boxes, right_flags, mask, None
+
         # Check if cropped stereo processing is enabled
         use_cropped = self.cfg.get('use_cropped_stereo', False)
         
@@ -1691,12 +1715,15 @@ class GlovePoseTracker:
         # Calculate scaled focal length
         img_size = max(img_cv2.shape[:2])
         scaled_focal_length = COLOR_INTRINSIC[1, 1]  # from realsense camera
-        
-        # Convert to numpy arrays
-        boxes = np.array(boxes)
-        # hand_bbox = np.array(hand_bbox).reshape(1, 4)  # Single box
-        right_flags = np.array(right_flags)
-        
+
+        # Convert to numpy arrays and ensure proper shape
+        if len(boxes) == 0:
+            boxes = np.empty((0, 4))
+            right_flags = np.empty((0,))
+        else:
+            boxes = np.array(boxes)
+            right_flags = np.array(right_flags)
+
         # Run HaMeR inference
         results = self._run_hamer_inference(img_cv2, boxes, right_flags, scaled_focal_length)
         
@@ -1781,7 +1808,7 @@ class GlovePoseTracker:
         # Return empty results if inference failed
         empty_mesh = trimesh.Trimesh()
         empty_image = np.zeros(img_cv2.shape, dtype=np.float32)
-        return empty_mesh, empty_image, None, None, None, mask
+        return empty_mesh, empty_image, None, None, None, mask, None
 
     def _extract_hand_pointcloud(self, pointcloud: dict, mask: np.ndarray) -> np.ndarray:
         """

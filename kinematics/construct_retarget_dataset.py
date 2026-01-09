@@ -1546,7 +1546,7 @@ def main(cfg: DictConfig):
                 
                 # Run trajectory generation
                 psyonic_kinematics.visualize_ik_trajectory(
-                    filtered_mano_keypoints, filtered_wrist_transforms, headless=False, save_frames=False
+                    filtered_mano_keypoints, filtered_wrist_transforms, headless=True, save_frames=False
                 )
                 
         except Exception as e:

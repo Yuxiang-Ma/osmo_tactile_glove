@@ -9,7 +9,7 @@ import hydra
 from omegaconf import DictConfig
 
 class PlotKeypointsWithBowie():
-    def __init__(self, file_path, start_idx=25, end_idx=-1):
+    def __init__(self, file_path, start_idx=0, end_idx=-1):
         self.file_path = file_path
         self.processed_path = file_path + "processed.pkl"
         self.bowie_aligned_path = file_path + "synced_mags_aligned.pkl"
