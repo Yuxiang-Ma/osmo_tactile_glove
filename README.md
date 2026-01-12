@@ -20,7 +20,7 @@ Hardware guides and PCB files are on the `website` branch of this repo.
 1. Extract the hamer keypoints: (in osmo env)
  ```
  conda activate osmo
- python labs/glove2robot/postprocess/extract_hamer.py <rel_path_to_data>
+ python labs/glove2robot/postprocess/extract_hamer.py data/00/
   
  ```
  - sample data collect for paper can be downloaded via `data/download_data.sh` (TODO: upload data and update script)

@@ -1141,7 +1141,7 @@ class GlovePoseTracker:
     - Data synchronization between cameras and glove sensors
     """
 
-    def __init__(self, filepath: str, out_folder: str, hamer_ckpt: str, cfg: DictConfig):
+    def __init__(self, filepath: str, out_folder: str, hamer_ckpt: str, cfg: DictConfig, device: str = None):
         """
         Initialize the glove pose tracker.
         
@@ -1150,11 +1150,13 @@ class GlovePoseTracker:
             out_folder: Output directory for processed data
             hamer_ckpt: Path to HaMeR model checkpoint
             cfg: Configuration object containing processing parameters
+            device: Device to use (e.g., cuda:0, cuda:1, cpu). If None, auto-detect.
         """
         self.out_folder = out_folder
         self.filepath = filepath
         self.hamer_ckpt = hamer_ckpt
         self.cfg = cfg
+        self.device_name = device
         
         self.start_idx = cfg.get('start_index')
         self.end_idx = cfg.get('end_index')
@@ -1278,7 +1280,15 @@ class GlovePoseTracker:
             model, model_cfg = load_hamer(self.hamer_ckpt)
             
             # Setup device and model
-            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+            if self.device_name:
+                if self.device_name == "cuda":
+                    self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+                else:
+                    self.device = torch.device(self.device_name)
+            else:
+                self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+                
+            print(f"Using device: {self.device}")
             self.hamer_model = model.to(self.device)
             self.hamer_model.eval()
             self.hamer_cfg = model_cfg
@@ -2070,6 +2080,7 @@ def main() -> None:
                     epilog='')
 
     parser.add_argument('data_paths', type=str)
+    parser.add_argument('--device', type=str, default='cuda:0', help='Device to use (e.g., cuda:0, cuda:1, cpu)')
     args = parser.parse_args()
 
     with hydra.initialize(version_base=None, config_path="../config"):
@@ -2084,6 +2095,7 @@ def main() -> None:
     
     print(f"Processing {len(all_raw_data_paths)} data directories...")
     print(f"Using detection model: {cfg.bb_model}")
+    print(f"Using device: {args.device}")
     
     # Process each data directory
     for i, raw_data_path in enumerate(all_raw_data_paths):
@@ -2095,7 +2107,7 @@ def main() -> None:
             print("raw data path", raw_data_path)
             print("out folder", out_folder)
             glove_tracker = GlovePoseTracker(
-                raw_data_path, out_folder=out_folder, hamer_ckpt=hamer_ckpt, cfg=cfg
+                raw_data_path, out_folder=out_folder, hamer_ckpt=hamer_ckpt, cfg=cfg, device=args.device
             )
             
             glove_tracker.run_hamer(bb_model=cfg.bb_model)

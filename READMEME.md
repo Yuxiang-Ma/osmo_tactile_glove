@@ -7,6 +7,24 @@
 - [ ] A more generalizable way of retargetting hand poses
 - [ ] Integrate with popular and simple hand simulation environment
 
+## Currents pipeline
+With `data/00/` being the sample data, first run
+
+ ```
+ conda activate osmo
+ python labs/glove2robot/postprocess/extract_hamer.py data/00/ --device cuda:1
+  
+ ```
+Then, run optional keypoint visualization 
+```
+conda activate osmo
+python scripts/plot_keypoints_with_osmo.py
+```
+Finally, 
+```
+conda activate osmo_kinematics
+python kinematics/construct_retarget_dataset.py
+```
  
 ## Problems
 ### osmo environment bugs

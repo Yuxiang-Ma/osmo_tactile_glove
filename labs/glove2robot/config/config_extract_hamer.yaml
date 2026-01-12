@@ -48,15 +48,15 @@ depth_alignment_method: "simplified"  # Options: "simplified", "complex", "disab
 # complex: Full coordinate transformation between RGB and IR frames
 # disabled: No depth alignment, use original HaMeR predictions
 
-# Maximum frames to load from pickle files (for testing/debugging)
-# Set to null or omit to load all frames
-max_frames_to_load: 10  # Load only first 10 frames to save memory
+# # Maximum frames to load from pickle files (for testing/debugging)
+# # Set to null or omit to load all frames
+# max_frames_to_load: 10  # Load only first 10 frames to save memory
 
 #Trim videos to edit out unnecessary frames
-start_index: 0  # Start processing from this frame index
-end_index: 9  # End processing at this frame index (-1 means process all frames)
-# start_index: 38
-# end_index: -50
+# start_index: 0  # Start processing from this frame index
+# end_index: 9  # End processing at this frame index (-1 means process all frames)
+start_index: 38
+end_index: -50
 
 # camera_calibration: "PATH_TO_CAMERA_CALIBRATION" # as (4,4) rigid transform matrix saved to a .npy (numpy array)
 camera_calibration: "calibration_data/cam_to_base_sea.npy"
