@@ -1432,17 +1432,22 @@ def main(cfg: DictConfig):
         # Remove trailing slash if present
         trial = trial.rstrip('/')
         
-        # Check if processed.pkl exists
-        processed_file = trial + "/processed.pkl"
+        # Check if processed_remv_mag.pkl exists, fallback to processed.pkl
+        processed_file = trial + "/processed_remv_mag.pkl"
         if not os.path.exists(processed_file):
-            print(f"Warning: {processed_file} does not exist, skipping {trial}")
-            continue
-            
+            processed_file = trial + "/processed.pkl"
+            if not os.path.exists(processed_file):
+                print(f"Warning: Neither processed_remv_mag.pkl nor processed.pkl exist in {trial}, skipping")
+                continue
+            print(f"Using {processed_file}")
+        else:
+            print(f"Using {processed_file}")
+
         print(f"\nProcessing: {trial}")
-        
+
         try:
             psyonic_kinematics = PsyonicKinematics(trial, camera_config)
-            data = pickle.load(open(trial+"/processed.pkl", "rb"))
+            data = pickle.load(open(processed_file, "rb"))
             mano_keypoints = data["pred_keypoints_3d"]
             wrist_transforms = data["wrist"]
             

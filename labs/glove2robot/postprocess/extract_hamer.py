@@ -178,7 +178,6 @@ except ImportError as e:
 
 # Other imports
 try:
-    from glove2robot.utils.bowie_data import BowieSyncData
     from glove2robot.utils.hamer_utils import *
 except ImportError as e:
     print(f"Warning: glove2robot imports failed: {e}")
@@ -1163,7 +1162,7 @@ class GlovePoseTracker:
         # Initialize tracking statistics
         self.data_stats = [
             ["Filename", "Realsense Frames", "Hand Frames", "No Hand Frames",
-             "Hand Error Loss", "Bowie Frames", "Key Error Frames", "Key Error Loss"]
+             "Hand Error Loss", "Key Error Frames", "Key Error Loss"]
         ]
         
         # Initialize model components
@@ -1182,7 +1181,7 @@ class GlovePoseTracker:
         print("Initial memory state:")
         check_cuda_memory()
 
-        self.open_bowie_sync_pkl(self.filepath)
+        self.open_sync_pkl(self.filepath)
         # Initialize all components
         self._init_langsam()
         self._init_hamer()
@@ -1202,18 +1201,17 @@ class GlovePoseTracker:
             print("✅ ViT detection configured and will be used")
         print("="*50 + "\n")
 
-    def open_bowie_sync_pkl(self, path, verbose=False):
+    def open_sync_pkl(self, path, verbose=False):
         #one trial for now, for rosbag
         """
         input: path to ros2 bag file folder that contains extracted pkl files from .db3 file
-        outputs: realsense_ts, realsense_color, realsense_depth, realsense_ir1, realsense_ir2, bowie_mag_data
+        outputs: realsense_ts, realsense_color, realsense_depth, realsense_ir1, realsense_ir2
         """
         # rs_ts = np.asarray(pickle.load(open(path+ "/realsense_ts.pkl", "rb")))
         self.rs_color = np.asarray(pickle.load(open(path + "rgbs_aligned.pkl", "rb")))
         # self.rs_depth = np.asarray(pickle.load(open(path + "depth_aligned.pkl", "rb")))
         self.left_ir = np.asarray(pickle.load(open(path + "left_ir_aligned.pkl", "rb")))
         self.right_ir = np.asarray(pickle.load(open(path + "right_ir_aligned.pkl", "rb")))
-        bowie_data = np.asarray(pickle.load(open(path + "synced_mags_aligned_1.pkl", "rb")), dtype="object")
 
         # Option to load only a subset of frames to save memory and processing time
         max_frames = self.cfg.get('max_frames_to_load', None)
@@ -1222,40 +1220,11 @@ class GlovePoseTracker:
             self.rs_color = self.rs_color[:max_frames]
             self.left_ir = self.left_ir[:max_frames]
             self.right_ir = self.right_ir[:max_frames]
-            bowie_data = bowie_data[:max_frames]
 
         # print the shape of all loaded data
         print(f"Loaded Realsense color data shape: {self.rs_color.shape}")
         print(f"Loaded left IR data shape: {self.left_ir.shape}")
-        print(f"Loaded right IR data shape: {self.right_ir.shape}")
-        print(f"Loaded Bowie data shape: {bowie_data.shape}")
-        # Handle compact data format (timestamp, list_of_30_floats)
-        # Check if shape is (N, 2) and second element is a sequence of length 30
-        is_compact = False
-        if bowie_data.ndim == 2 and bowie_data.shape[1] == 2:
-            sample_val = bowie_data[0, 1]
-            if (isinstance(sample_val, list) or isinstance(sample_val, np.ndarray)) and len(sample_val) == 30:
-                is_compact = True
-
-        if is_compact:
-            print("Detected compact Bowie data format. Converting to (N, 10, 4)...")
-            new_data = []
-            for i in range(len(bowie_data)):
-                ts = bowie_data[i, 0]
-                vals = np.array(bowie_data[i, 1])
-                # vals is (30,) -> (10, 3)
-                vals_reshaped = vals.reshape(10, 3)
-                # Create (10, 4) with ts
-                block = np.zeros((10, 4))
-                block[:, 0] = ts
-                block[:, 1:] = vals_reshaped
-                new_data.append(block)
-            bowie_data = np.array(new_data)
-        else:
-            bowie_data = bowie_data.reshape((bowie_data.shape[0],10,4))
-            
-        self.bowie_data = bowie_data[:,:,1:]
-        # self.bowie_data = bowie_data[:,1] 
+        print(f"Loaded right IR data shape: {self.right_ir.shape}") 
     
     
     def _init_hamer(self):
@@ -1865,7 +1834,7 @@ class GlovePoseTracker:
         print(f"Starting HaMeR processing with {bb_model} detection...")
         
         filepath = self.filepath
-        filename = "processed.pkl"
+        filename = "processed_remv_mag.pkl"
         
         print(f"Processing File: {filename}")
         print(f"BowieSyncData Filepath: {filepath}")
@@ -1942,7 +1911,7 @@ class GlovePoseTracker:
             
             # Save processed data
             self.save_data(self.rs_color, rs_ir1, rs_ir2,
-                            keypoints, all_uncorrected_keypoints, hand_objs, hand_masks, self.bowie_data, filename)
+                            keypoints, all_uncorrected_keypoints, hand_objs, hand_masks, filename)
             
             
         except KeyboardInterrupt:
@@ -1954,7 +1923,7 @@ class GlovePoseTracker:
     
     def save_data(self, rs_color: np.ndarray,
                   rs_ir1: np.ndarray, rs_ir2: np.ndarray, keypoints: list, uncorrected_keypoints: list,
-                  hand_objs: list, hand_masks: list, bowie, filename: str):
+                  hand_objs: list, hand_masks: list, filename: str):
         """
         Save processed data to pickle file.
         
@@ -1968,7 +1937,6 @@ class GlovePoseTracker:
             uncorrected_keypoints: List of 3D keypoints without depth correction in z-axis
             hand_objs: List of hand mesh objects
             hand_masks: List of hand masks
-            bowie: Bowie glove data object
             filename: Output filename
         """
         print(f"Saving processed data to {filename}...")
@@ -1996,7 +1964,6 @@ class GlovePoseTracker:
             "pred_keypoints_3d": np.stack(pred_kpts_3d).astype(np.float32),
             "uncorrected_keypoints": np.stack([uk if uk is not None else np.zeros((21, 3)) for uk in uncorrected_keypoints]).astype(np.float32),
             "wrist": np.stack(wrists).astype(np.float32),
-            "glove": self.bowie_data,
         }
         
         # Save to file (overwrites existing data)
@@ -2042,8 +2009,7 @@ class GlovePoseTracker:
         # Clear data arrays
         cleanup_variables(getattr(self, 'rs_color', None), 
                          getattr(self, 'left_ir', None), 
-                         getattr(self, 'right_ir', None), 
-                         getattr(self, 'bowie_data', None))
+                         getattr(self, 'right_ir', None))
         
         # Clear model references
         for attr in ['hamer_model', 'hamer_detector', 'cpm', 'hamer_renderer', 'langsam', 'processor']:

@@ -21,9 +21,10 @@ Hardware guides and PCB files are on the `website` branch of this repo.
  ```
  conda activate osmo
  python labs/glove2robot/postprocess/extract_hamer.py data/00/
-  
+
  ```
  - sample data collect for paper can be downloaded via `data/download_data.sh` (TODO: upload data and update script)
+ - **Note:** The latest version of `extract_hamer.py` and `construct_retarget_dataset.py` do not require tactile data input. They can work with vision-only data (RGB images and hand keypoints).
 2. **Optional but recommended** Inspect the extracted keypoints: (in osmo env) 
 ```
 conda activate osmo
