@@ -168,3 +168,16 @@ You can verify the environment with:
 
 ### Headless Qt Fix (General Debugging/SSH)
 To prevent `qt.qpa.plugin: Could not load the Qt platform plugin "xcb"` errors in headless environments (like VS Code debugger or SSH), we added `os.environ["QT_QPA_PLATFORM"] = "offscreen"` to the top of the processing scripts. This is a general Qt issue when no X server is available.
+
+## Codebase Simplification (Visual-Only)
+
+We have streamlined the codebase to focus on a **visual-only hand pose extraction pipeline**, decoupling it from the magnetic sensor ("Bowie") hardware.
+
+### Key Changes
+*   **Archived "Bowie" Code:** All magnetic sensor firmware, ROS drivers, and dependent scripts have been moved to `archive/` (e.g., `firmware/`, `hardware/`, `bowie_node.py`).
+*   **Decoupled Utilities:** `labs/glove2robot/utils/` has been cleaned of magnetic sensor imports, leaving only general visual/file utilities.
+*   **Stable Data Collection:** `data_collect/collect_realsense.py` was optimized for RealSense D415/D435 stability (multithreading, hardware resets, 640x480 default).
+*   **New Tools:**
+    *   `visualize_visual_data.py`: A dedicated script to verify RGB recordings without needing magnetic data. Generates VS Code-compatible H.264/MP4 videos.
+
+This simplification ensures the core computer vision pipeline (HaMeR) runs independently of the custom glove hardware.
