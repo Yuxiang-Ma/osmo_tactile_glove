@@ -30,7 +30,8 @@ python kinematics/construct_retarget_dataset.py
 ### osmo environment bugs
 The osmo python env has complex dependency settings, packages like hamer, sam, detectron2 can not be installed simply with conda. This is what gemini did to install everything.
 
-### dataset 
+### data collection
+New data collection pipeline
 
 
 
