@@ -151,25 +151,25 @@ def main():
                 frame_idx += 1
                 continue
 
-            color_img = np.asanyarray(color_frame.get_data())
+            color_img = np.asanyarray(color_frame.get_data()).copy()
             if color_frame.get_profile().format() == rs.format.rgb8:
                 color_img = cv2.cvtColor(color_img, cv2.COLOR_RGB2BGR)
 
             depth_img = None
             if depth_frame:
-                depth_img = np.asanyarray(depth_frame.get_data())
+                depth_img = np.asanyarray(depth_frame.get_data()).copy()
             else:
                 missing_depth += 1
 
             left_ir_img = None
             if left_ir_frame:
-                left_ir_img = np.asanyarray(left_ir_frame.get_data())
+                left_ir_img = np.asanyarray(left_ir_frame.get_data()).copy()
             else:
                 missing_ir1 += 1
 
             right_ir_img = None
             if right_ir_frame:
-                right_ir_img = np.asanyarray(right_ir_frame.get_data())
+                right_ir_img = np.asanyarray(right_ir_frame.get_data()).copy()
             else:
                 missing_ir2 += 1
 

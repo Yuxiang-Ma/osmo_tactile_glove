@@ -300,16 +300,16 @@ def main():
                 frame_count += 1
                 continue
 
-            # Convert to numpy immediately to release RS frame resources
-            color_img = np.asanyarray(color_frame.get_data())
-            depth_img = np.asanyarray(depth_frame.get_data())
+            # Copy frames to avoid holding RealSense buffers (prevents pipeline stalls)
+            color_img = np.asanyarray(color_frame.get_data()).copy()
+            depth_img = np.asanyarray(depth_frame.get_data()).copy()
             
             left_ir_img = None
             right_ir_img = None
             if left_ir_frame:
-                left_ir_img = np.asanyarray(left_ir_frame.get_data())
+                left_ir_img = np.asanyarray(left_ir_frame.get_data()).copy()
             if right_ir_frame:
-                right_ir_img = np.asanyarray(right_ir_frame.get_data())
+                right_ir_img = np.asanyarray(right_ir_frame.get_data()).copy()
 
             # Push to queue
             data_queue.put((color_img, depth_img, left_ir_img, right_ir_img))
